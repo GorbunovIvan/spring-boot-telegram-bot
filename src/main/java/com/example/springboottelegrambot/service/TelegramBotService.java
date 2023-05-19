@@ -1,19 +1,21 @@
 package com.example.springboottelegrambot.service;
 
 import com.example.springboottelegrambot.config.BotConfig;
-import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 @Component
-public class TelegramBot extends TelegramLongPollingBot {
+@Slf4j
+public class TelegramBotService extends TelegramLongPollingBot {
 
     private final BotConfig botConfig;
 
-    public TelegramBot(BotConfig botConfig) {
+    public TelegramBotService(BotConfig botConfig) {
         this.botConfig = botConfig;
     }
 
@@ -39,21 +41,32 @@ public class TelegramBot extends TelegramLongPollingBot {
             return;
 
         String messageText = message.getText();
+        String chatIt = String.valueOf(message.getChatId());
 
         if (messageText.equals("/start")) {
-            sendMessage(message.getChatId(), "hello");
+            commandReceived(chatIt, "hello, " + message.getFrom().getFirstName());
         } else if (messageText.equals("/bye")) {
-            sendMessage(message.getChatId(), "good bye");
+            commandReceived(chatIt, "good bye");
         } else {
-            sendMessage(message.getChatId(), "I don't understand you");
+            commandReceived(chatIt, "I don't understand you");
         }
     }
 
-    @SneakyThrows
-    private void sendMessage(long chatIt, String text) {
-        SendMessage sendMessage = new SendMessage();
-        sendMessage.setChatId(String.valueOf(chatIt));
-        sendMessage.setText(text);
-        execute(sendMessage);
+    private void commandReceived(String chatIt, String text) {
+        log.info("command received from user");
+        sendMessage(chatIt, text);
+    }
+
+    private void sendMessage(String chatIt, String text) {
+
+        SendMessage sendMessage = new SendMessage(chatIt, text);
+
+        try {
+            execute(sendMessage);
+            log.info("message sent to user");
+        } catch (TelegramApiException e) {
+            log.error("Error occurred during replying to user: " + e.getMessage());
+            throw new RuntimeException(e);
+        }
     }
 }
