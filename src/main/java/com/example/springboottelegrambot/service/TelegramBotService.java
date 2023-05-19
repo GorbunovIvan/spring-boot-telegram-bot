@@ -4,10 +4,16 @@ import com.example.springboottelegrambot.config.BotConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
+import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Component
 @Slf4j
@@ -16,7 +22,21 @@ public class TelegramBotService extends TelegramLongPollingBot {
     private final BotConfig botConfig;
 
     public TelegramBotService(BotConfig botConfig) {
+
         this.botConfig = botConfig;
+
+        List<BotCommand> commands = new ArrayList<>();
+        commands.add(new BotCommand("/start", "get hello message from bot"));
+        commands.add(new BotCommand("/bye", "get bye message from bot"));
+        commands.add(new BotCommand("/help", "info how to use this bot"));
+        commands.add(new BotCommand("/settings", "set your preferences"));
+
+        try {
+            this.execute(new SetMyCommands(commands, new BotCommandScopeDefault(), null));
+        } catch (TelegramApiException e) {
+            log.error("Error occurred during setting commands: " + e.getMessage());
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -62,7 +82,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
         SendMessage sendMessage = new SendMessage(chatIt, text);
 
         try {
-            execute(sendMessage);
+            this.execute(sendMessage);
             log.info("message sent to user");
         } catch (TelegramApiException e) {
             log.error("Error occurred during replying to user: " + e.getMessage());
