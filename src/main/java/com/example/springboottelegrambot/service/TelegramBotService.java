@@ -1,6 +1,8 @@
 package com.example.springboottelegrambot.service;
 
 import com.example.springboottelegrambot.config.BotConfig;
+import com.example.springboottelegrambot.model.User;
+import com.example.springboottelegrambot.model.UserRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -12,6 +14,7 @@ import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -19,12 +22,16 @@ import java.util.List;
 @Slf4j
 public class TelegramBotService extends TelegramLongPollingBot {
 
+    private final UserRepository userRepository;
+
     private final BotConfig botConfig;
 
-    public TelegramBotService(BotConfig botConfig) {
+    public TelegramBotService(BotConfig botConfig, UserRepository userRepository) {
 
         this.botConfig = botConfig;
+        this.userRepository = userRepository;
 
+        // menu
         List<BotCommand> commands = new ArrayList<>();
         commands.add(new BotCommand("/start", "get hello message from bot"));
         commands.add(new BotCommand("/bye", "get bye message from bot"));
@@ -49,6 +56,23 @@ public class TelegramBotService extends TelegramLongPollingBot {
         return botConfig.getBotToken();
     }
 
+    private void registerUser(Message msg) {
+
+        if (userRepository.findById(msg.getChatId()).isEmpty()) {
+
+            var user = new User();
+            user.setChatId(msg.getChatId());
+            user.setFirstName(msg.getFrom().getUserName());
+            user.setUsername(msg.getFrom().getFirstName());
+            user.setLastName(msg.getFrom().getLastName());
+            user.setRegisteredAt(new Timestamp(System.currentTimeMillis()));
+
+            userRepository.save(user);
+
+            log.info("new user " + user + " is added");
+        }
+    }
+
     @Override
     public void onUpdateReceived(Update update) {
 
@@ -62,6 +86,8 @@ public class TelegramBotService extends TelegramLongPollingBot {
 
         String messageText = message.getText();
         String chatIt = String.valueOf(message.getChatId());
+
+        registerUser(message);
 
         if (messageText.equals("/start")) {
             commandReceived(chatIt, "hello, " + message.getFrom().getFirstName());
